@@ -13,27 +13,22 @@ knitr::opts_chunk$set(echo = TRUE)
 library(readr)
 library(tidyverse)
 library(dplyr)
-# import files
-netflix_titles <- read_csv("Data Science 1/New folder/data1/netflix_titles.csv")
-amazon_titles <- read_csv("Data Science 1/New folder/data1/amazon_titles.csv")
-apple_titles <- read_csv("Data Science 1/New folder/data1/apple_titles.csv")
-hbo_titles <- read_csv("Data Science 1/New folder/data1/hbo_titles.csv")
-disney_titles <- read_csv("Data Science 1/New folder/data1/disney_titles.csv")
-# add column for streaming platform
-netflix_titles = netflix_titles %>% mutate(platform = 'Netflix')
-amazon_titles = amazon_titles %>% mutate(platform = 'Amazon')
-apple_titles = apple_titles %>% mutate(platform = 'Apple TV')
-hbo_titles = hbo_titles %>% mutate(platform = 'HBO Max')
-disney_titles = disney_titles %>% mutate(platform = 'Disney')
-# combine all datasets to one
-all_titles = full_join(netflix_titles, amazon_titles)
-all_titles = full_join(all_titles, apple_titles)
-all_titles = full_join(all_titles, disney_titles)
-all_titles = full_join(all_titles, hbo_titles)
+
+# add column to indicate streaming platform
 # remove unwanted data 'id', and 'imdb_id'
 #reorganize columns
-all_titles = all_titles %>% subset(select = -c(id, imdb_id))
-all_titles = all_titles %>% select(platform, everything())
+netflix = read_csv("netflix_titles.csv") %>% subset(select = -c(id, imdb_id)) %>% mutate(platform = 'Netflix') %>% select(platform, everything())
+amazon = read_csv("amazon_titles.csv") %>% subset(select = -c(id, imdb_id)) %>% mutate(platform = 'Amazon') %>% select(platform, everything())
+apple = read_csv("apple_titles.csv") %>% subset(select = -c(id, imdb_id)) %>% mutate(platform = 'Apple TV') %>% select(platform, everything())
+hbo = read_csv("hbo_titles.csv") %>% subset(select = -c(id, imdb_id)) %>% mutate(platform = 'HBO Max') %>% select(platform, everything())
+disney = read_csv("disney_titles.csv") %>% subset(select = -c(id, imdb_id)) %>% mutate(platform = 'Disney') %>% select(platform, everything())
+
+# combine all datasets to one
+all_titles = full_join(netflix, amazon)
+all_titles = full_join(all_titles, apple)
+all_titles = full_join(all_titles, disney)
+all_titles = full_join(all_titles, hbo)
+
 #split data set bewtween MOVIE and SHOW
 all_movies = all_titles %>% filter(type == 'MOVIE')
 all_shows = all_titles %>% filter(type == 'SHOW')
@@ -44,6 +39,26 @@ all_shows = all_titles %>% filter(type == 'SHOW')
 You can also embed plots, for example:
 
 ```{r pressure, echo=FALSE}
+#shows percentages of all shows and movies between all platforms 
+all_titles %>% group_by(platform, type) %>% summarise(percent = 100 * n() / nrow(all_titles), total = n(), .groups = 'drop')
+#shows percentage of total items streamed between all platforms
+all_titles %>% group_by(platform) %>% summarise(percent = 100 * n() / nrow(all_titles), total = n())
+#shows the percentages of ratios to movies without regard for platform
+all_titles %>% group_by(type) %>% summarise(percent = 100 * n() / nrow(all_titles), total = n())
+
+#shows the ration of movies to shows for each seperate platform in one table
+full_join(disney %>% group_by(platform, type) %>% summarise(percent = 100 * n() / nrow(disney), total = n(), .groups = 'drop'), netflix %>% group_by(platform, type) %>% summarise(percent = 100 * n() / nrow(netflix), total = n(), .groups = 'drop')) %>%
+  full_join(hbo %>% group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(hbo), total = n(), .groups = 'drop')) %>%
+  full_join(amazon %>% group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(amazon), total = n(), .groups = 'drop')) %>%
+  full_join(apple %>% group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(apple), total = n(), .groups = 'drop'))
+  
+#shows ratio of movies to shows
+disney %>% group_by(type) %>% summarise(percent = 100 * n() / nrow(disney), total = n())
+netflix %>% group_by(type) %>% summarise(percent = 100 * n() / nrow(netflix), total = n())
+hbo %>% group_by(type) %>% summarise(percent = 100 * n() / nrow(hbo), total = n())
+amazon %>% group_by(type) %>% summarise(percent = 100 * n() / nrow(amazon), total = n())
+apple %>% group_by(type) %>% summarise(percent = 100 * n() / nrow(apple), total = n())
+
 
 ```
 
