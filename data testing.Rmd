@@ -1,0 +1,50 @@
+---
+title: "test site"
+output: html_document
+date: "2024-04-16"
+---
+
+```{r setup, include=FALSE,echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r }
+library(readr)
+library(tidyverse)
+library(dplyr)
+# import files
+netflix_titles <- read_csv("Data Science 1/New folder/data1/netflix_titles.csv")
+amazon_titles <- read_csv("Data Science 1/New folder/data1/amazon_titles.csv")
+apple_titles <- read_csv("Data Science 1/New folder/data1/apple_titles.csv")
+hbo_titles <- read_csv("Data Science 1/New folder/data1/hbo_titles.csv")
+disney_titles <- read_csv("Data Science 1/New folder/data1/disney_titles.csv")
+# add column for streaming platform
+netflix_titles = netflix_titles %>% mutate(platform = 'Netflix')
+amazon_titles = amazon_titles %>% mutate(platform = 'Amazon')
+apple_titles = apple_titles %>% mutate(platform = 'Apple TV')
+hbo_titles = hbo_titles %>% mutate(platform = 'HBO Max')
+disney_titles = disney_titles %>% mutate(platform = 'Disney')
+# combine all datasets to one
+all_titles = full_join(netflix_titles, amazon_titles)
+all_titles = full_join(all_titles, apple_titles)
+all_titles = full_join(all_titles, disney_titles)
+all_titles = full_join(all_titles, hbo_titles)
+# remove unwanted data 'id', and 'imdb_id'
+#reorganize columns
+all_titles = all_titles %>% subset(select = -c(id, imdb_id))
+all_titles = all_titles %>% select(platform, everything())
+#split data set bewtween MOVIE and SHOW
+all_movies = all_titles %>% filter(type == 'MOVIE')
+all_shows = all_titles %>% filter(type == 'SHOW')
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

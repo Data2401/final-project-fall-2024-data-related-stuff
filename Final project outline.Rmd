@@ -1,0 +1,47 @@
+---
+title: "Final_project_plan"
+author: "Gabriel Aguirre"
+date: "2024-04-11"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+### **Team Members:**
+ - Just me :(
+
+### **The Data:**
+Data was sourced through Kaggle
+
+ - Amazon     [link to data](https://www.kaggle.com/datasets/dgoenrique/amazon-prime-movies-and-tv-shows)
+ - Netflix    [link to data](https://www.kaggle.com/datasets/dgoenrique/netflix-movies-and-tv-shows)
+ - HBO Max    [link to data](https://www.kaggle.com/datasets/dgoenrique/hbo-max-movies-and-tv-shows)
+ - Apple TV   [link to data](https://www.kaggle.com/datasets/dgoenrique/apple-tv-movies-and-tv-shows)
+ - Disney+    [link to data](https://www.kaggle.com/datasets/dgoenrique/disney-movies-and-tv-shows)
+
+ 
+```{r, echo=FALSE}
+netflix_credits = read.csv("C:/Users/gagui/OneDrive/Documents/Data Science 1/New folder/data1/netflix_credits.csv")
+netflix_titles = read.csv("C:/Users/gagui/OneDrive/Documents/Data Science 1/New folder/data1/netflix_titles.csv")
+hbo_credits = read.csv("C:/Users/gagui/OneDrive/Documents/Data Science 1/New folder/data1/hbo_credits.csv")
+hbo_titles = read.csv("C:/Users/gagui/OneDrive/Documents/Data Science 1/New folder/data1/hbo_titles.csv")
+disney_credits = read.csv("C:/Users/gagui/OneDrive/Documents/Data Science 1/New folder/data1/disney_credits.csv")
+disney_titles = read.csv("C:/Users/gagui/OneDrive/Documents/Data Science 1/New folder/data1/disney_titles.csv")
+apple_credits = read.csv("C:/Users/gagui/OneDrive/Documents/Data Science 1/New folder/data1/apple_credits.csv")
+apple_titles = read.csv("C:/Users/gagui/OneDrive/Documents/Data Science 1/New folder/data1/apple_titles.csv")
+amazon_credits = read.csv("C:/Users/gagui/OneDrive/Documents/Data Science 1/New folder/data1/amazon_credits.csv")
+amazon_titles = read.csv("C:/Users/gagui/OneDrive/Documents/Data Science 1/New folder/data1/amazon_titles.csv")
+
+```
+### **Intro:**
+The data I plan on using details info about various movies and TV shows on multiple streaming platforms. It has info about the directors and actors of the movies/shows. The genre(s) and their ratings pulled from both IMDB and TMDB. I chose to look at more than one streaming platform because i was curious to see if there would be any differences to the types of shows that do better of if there was no difference at all. I also curious to see what different platforms might focus on for their users. All in all it will be interesting to see how they compare or if they follow the same trends.
+
+### **Questions:**
+ - who has the most to stream
+ - who has more higher rated Shows/movies
+ - What does best on each individual platform
+ - What genre tends to be the most popular
+ - what were the highest rated and worst rated shows and movies that were being streamed during that time
+ 
+ 
