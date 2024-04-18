@@ -16,34 +16,49 @@ library(ggplot2)
 
 # The Data:
  - load and clean the data
-
+ - add column to indicate streaming platform
+ - remove unwanted data 'id', and 'imdb_id'
+ - reorganize column
 ```{r, echo=FALSE}
 # add column to indicate streaming platform
-# remove unwanted data 'id', and 'imdb_id'
-# reorganize columns
-netflix = read_csv("netflix_titles.csv", show_col_types = FALSE) %>%
-  subset(select = -c(id, imdb_id)) %>% mutate(platform = 'Netflix') %>% select(platform, everything())
-amazon = read_csv("amazon_titles.csv", show_col_types = FALSE) %>% 
-  subset(select = -c(id, imdb_id)) %>% mutate(platform = 'Amazon') %>% select(platform, everything())
-apple = read_csv("apple_titles.csv", show_col_types = FALSE) %>% 
-  subset(select = -c(id, imdb_id)) %>% mutate(platform = 'Apple TV') %>% select(platform, everything())
-hbo = read_csv("hbo_titles.csv", show_col_types = FALSE) %>% 
-  subset(select = -c(id, imdb_id)) %>% mutate(platform = 'HBO Max') %>% select(platform, everything())
-disney = read_csv("disney_titles.csv", show_col_types = FALSE) %>% 
-  subset(select = -c(id, imdb_id)) %>% mutate(platform = 'Disney') %>% select(platform, everything())
 
-# combine all data sets to one
+netflix = read_csv("netflix_titles.csv", show_col_types = FALSE)
+hbo = read_csv("hbo_titles.csv", show_col_types = FALSE)
+amazon = read_csv("amazon_titles.csv", show_col_types = FALSE)
+disney = read_csv("disney_titles.csv", show_col_types = FALSE)
+apple = read_csv("apple_titles.csv", show_col_types = FALSE)
+
+# remove unwanted data 'id', and 'imdb_id'
+
+netflix = netflix %>% subset(select = -c(id, imdb_id))
+amazon = amazon %>% subset(select = -c(id, imdb_id))
+apple = apple %>% subset(select = -c(id, imdb_id))
+hbo = hbo %>% subset(select = -c(id, imdb_id))
+disney = disney %>% subset(select = -c(id, imdb_id))
+
+# add column to show show streaming platforms and reorganize columns
+
+netflix = netflix %>% mutate(platform = 'Netflix') %>% select(platform, everything())
+disney = disney %>% mutate(platform = 'Disney') %>% select(platform, everything())
+hbo = hbo %>% mutate(platform = 'HBO Max') %>% select(platform, everything())
+apple = apple %>% mutate(platform = 'Apple TV') %>% select(platform, everything())
+amazon = amazon %>% mutate(platform = 'Amazon') %>% select(platform, everything())  
+```
+# combine
+ - all data sets as one : all_titles
+ - date for just movies : all_movies
+ - data for just shows  : all_shows
+```{r, echo=FALSE}
+
 all_titles = full_join(netflix, amazon) %>% full_join(apple) %>% full_join(disney) %>% full_join(hbo)
 
-
-#split data set between MOVIE and SHOW
 all_movies = all_titles %>% filter(type == 'MOVIE')
+
 all_shows = all_titles %>% filter(type == 'SHOW')
 ```
 
 
 ## shows vs movies
-
  - looking at the amount of movies and shows in the data sets
 
 ```{r pressure, echo=FALSE}
@@ -51,35 +66,55 @@ all_shows = all_titles %>% filter(type == 'SHOW')
 all_titles %>% 
   group_by(platform, type) %>% summarise(percent = 100 * n() / nrow(all_titles), total = n(), .groups = 'drop')
 
+ggplot(all_titles) + aes(platform, fill = type) + geom_bar(position = 'dodge')+ geom_text(stat='count',  aes(label = stat(count),group=type), position=position_dodge(1))
+
+
 #shows percentage of total items streamed between all platforms
 all_titles %>% 
   group_by(platform) %>% summarise(percent = 100 * n() / nrow(all_titles), total = n())
+
+#probably not needed
+text(barplot(table(all_titles$platform), ylim = c(0, max(table(all_titles$platform)) * 1.1)),
+     table(all_titles$platform),
+     labels = table(all_titles$platform),
+     pos = 3 ,cex = 0.8, col = "blue")
+
 
 #shows the percentages of ratios to movies without regard for platform
 all_titles %>% 
   group_by(type) %>% summarise(percent = 100 * n() / nrow(all_titles), total = n())
 
+
+#probably not needed
+text(barplot(table(all_titles$type), ylim = c(0, max(table(all_titles$type)) * 1.1)),
+     table(all_titles$type),
+     labels = table(all_titles$type), pos = 3 ,cex = 0.8, col = "blue")
+```
+
+
+```{r pressure, echo=FALSE}
 #shows the ratio of movies to shows for each separate platform in one table
 all_totals = full_join(disney %>% 
-            group_by(platform, type) %>% summarise(percent = 100 * n() / nrow(disney), total = n(), .groups = 'drop'), netflix %>%
-            group_by(platform, type) %>% summarise(percent = 100 * n() / nrow(netflix), total = n(), .groups = 'drop')) %>%
-  full_join(hbo %>%
-              group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(hbo), total = n(), .groups = 'drop')) %>% 
-  full_join(amazon %>% 
-              group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(amazon), total = n(), .groups = 'drop')) %>%
-  full_join(apple %>% 
-              group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(apple), total = n(), .groups = 'drop'))
-  all_totals
+                         group_by(platform, type) %>% summarise(percent = 100 * n() / nrow(disney), total = n(), .groups = 'drop'),
+                       netflix %>% 
+                         group_by(platform, type) %>% summarise(percent = 100 * n() / nrow(netflix), total = n(), .groups = 'drop'))
+all_totals = full_join(all_totals, hbo %>% group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(hbo), total = n(), .groups = 'drop'))
+all_totals = full_join(all_totals, amazon %>% group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(amazon), total = n(), .groups = 'drop'))
+all_totals = full_join(all_totals, apple %>% group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(apple), total = n(), .groups = 'drop'))
+all_totals  
+
+
 #shows ratio of movies to shows
-disney_totals= disney %>% 
+
+disney %>% 
   group_by(type) %>% summarise(percent = 100 * n() / nrow(disney), total = n())
-netflix_totals = netflix %>% 
+netflix %>% 
   group_by(type) %>% summarise(percent = 100 * n() / nrow(netflix), total = n())
-hbo_totals = hbo %>% 
+hbo %>% 
   group_by(type) %>% summarise(percent = 100 * n() / nrow(hbo), total = n())
-amazon_totals = amazon %>% 
+amazon %>% 
   group_by(type) %>% summarise(percent = 100 * n() / nrow(amazon), total = n())
-apple_totals = amazon %>% 
+apple %>% 
   group_by(type) %>% summarise(percent = 100 * n() / nrow(apple), total = n())
 
 
@@ -87,35 +122,58 @@ apple_totals = amazon %>%
 
 
 
-
+# Votes comparison
 ```{r}
+#imdb vs votes
+all_titles %>% ggplot() + aes(imdb_score ,imdb_votes, color = type) + geom_point(na.rm = T, position = 'jitter') + facet_wrap(~ platform)
+all_movies %>% ggplot() + aes(imdb_score ,imdb_votes) + geom_point(na.rm = T, position = 'jitter') + facet_wrap(~ platform)all_movies %>% ggplot() + aes(imdb_score ,imdb_votes) + geom_point(na.rm = T, position = 'jitter') + facet_wrap(~ platform)all_movies %>% ggplot() + aes(imdb_score ,imdb_votes) + geom_point(na.rm = T, position = 'jitter') + facet_wrap(~ platform)
+all_shows  %>% ggplot() + aes(imdb_score ,imdb_votes) + geom_point(na.rm = T, position = 'jitter') + facet_wrap(~ platform)
 
-#plot of the ammount of movies and shows  for each platform has in this dataset
-text(barplot(table(all_titles$platform), ylim = c(0, max(table(all_titles$platform)) * 1.1)),
-     table(all_titles$platform),
-     labels = table(all_titles$platform),
-     pos = 3 ,cex = 0.8, col = "blue")
-
-#plot of the total amount of shows and movies
-text(barplot(table(all_titles$type), ylim = c(0, max(table(all_titles$type)) * 1.1)),
-     table(all_titles$type),
-     labels = table(all_titles$type), pos = 3 ,cex = 0.8, col = "blue")
-
-ggplot(all_titles) + aes(platform, fill = type) + geom_bar(position = 'dodge')+ geom_text(stat='count',  aes(label=..count.., group=type), position=position_dodge(1))
-  
-all_titles %>% ggplot() + aes(imdb_score ,imdb_votes, color = platform) + geom_point(na.rm = T, position = 'jitter') + facet_wrap(~ platform)
-all_movies %>% ggplot() + aes(imdb_score ,imdb_votes, color = platform) + geom_point(na.rm = T, position = 'jitter') + facet_wrap(~ platform)
-all_shows  %>% ggplot() + aes(imdb_score ,imdb_votes, color = platform) + geom_point(na.rm = T, position = 'jitter') + facet_wrap(~ platform)
-
-all_titles %>% ggplot() + aes(imdb_score ,tmdb_score, color = type) + geom_point(na.rm = T) + facet_wrap(~ platform)
+#tmdb vs popularity
+all_titles %>% ggplot() + aes(tmdb_score ,tmdb_popularity, color = type) + geom_point(na.rm = T, position = 'jitter') + facet_wrap(~ platform)
+all_movies %>% ggplot() + aes(tmdb_score ,tmdb_popularity) + geom_point(na.rm = T, position = 'jitter') + facet_wrap(~ platform)
+all_shows  %>% ggplot() + aes(tmdb_score ,tmdb_popularity) + geom_point(na.rm = T, position = 'jitter') + facet_wrap(~ platform)
 
 
-
-
-all_titles %>% ggplot() + aes(imdb_score, fill = platform) + geom_histogram(position = 'dodge')+facet_wrap(~ platform)
-all_shows %>% ggplot() + aes(imdb_score, fill = platform) + geom_histogram(position = 'dodge')+facet_wrap(~ platform)
-all_movies %>% ggplot() + aes(imdb_score, fill = platform) + geom_histogram(position = 'dodge')+facet_wrap(~ platform)
+all_titles %>% ggplot() + aes(tmdb_score ,imdb_score , color = type) + geom_density_2d(na.rm = T) + facet_wrap(~ platform)
+all_movies %>% ggplot() + aes(tmdb_score ,imdb_score) + geom_density_2d(na.rm = T) + facet_wrap(~ platform)
+all_shows  %>% ggplot() + aes(tmdb_score ,imdb_score, color = type) + geom_density_2d(na.rm = T)
 
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+```{r}
+
+# imdb scores on each platform, who has higher scores and who has more lower scores
+all_titles %>% filter(imdb_score > 5) %>% ggplot() + aes(imdb_score, fill = type) + geom_histogram(binwidth = 1/3)+facet_wrap(~ platform)
+all_titles %>% filter(imdb_score > 5) %>% ggplot() + aes(imdb_score) + geom_histogram()+facet_wrap(~ type)
+
+all_titles %>% filter(imdb_score < 5) %>% ggplot() + aes(imdb_score, fill = type) + geom_histogram(binwidth = 1/3)+facet_wrap(~ platform)
+all_titles %>% filter(imdb_score < 5) %>% ggplot() + aes(imdb_score) + geom_histogram()+facet_wrap(~ type)
+# note decide whether or not to use all scores and scores that are above average or just scores above average and below average
+all_shows %>% ggplot() + aes(imdb_score, fill = platform) + geom_histogram()+facet_wrap(~ platform)
+all_titles %>% ggplot() + aes(imdb_score, fill = 'red') + geom_histogram()+facet_wrap(~ type)
+```
+
+
+```{r}
+#tmbd
+all_titles %>% filter(tmdb_score > 5) %>% ggplot() + aes(tmdb_score, fill = type) + geom_histogram()+facet_wrap(~ platform)
+all_titles %>% filter(tmdb_score > 5) %>% ggplot() + aes(tmdb_score) + geom_histogram()+facet_wrap(~ type)
+
+all_titles %>% ggplot() + aes(tmdb_score, fill = platform) + geom_histogram()+facet_wrap(~ type)
+
+all_movies %>% ggplot() + aes(tmdb_score, fill = platform) + geom_histogram()+facet_wrap(~ platform)
+
+```
+# Other things to look at
+ - 
+ - release dates vs score and popularity
+ - popularity and score vs age
+ - 
+```{r}
+
+```
+
+
