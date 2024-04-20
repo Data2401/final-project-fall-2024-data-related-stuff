@@ -13,6 +13,7 @@ library(tidyverse)
 library(dplyr)
 library(ggplot2)
 library(tidyr)
+library(stringr)
 ```
 
 
@@ -53,23 +54,29 @@ all_titles = full_join(netflix, amazon) %>% full_join(apple) %>% full_join(disne
 all_movies = all_titles %>% filter(type == 'MOVIE')
 
 all_shows = all_titles %>% filter(type == 'SHOW')
-```
 
-
-#movies and shows by %
-```{r pressure, echo=FALSE}
 #shows the ratio of movies to shows for each separate platform in one table
 all_totals = full_join(disney %>% group_by(platform, type) %>% summarise(percent = 100 * n() / nrow(disney), total = n(), .groups = 'drop'),
                        netflix %>% group_by(platform, type) %>% summarise(percent = 100 * n() / nrow(netflix), total = n(), .groups = 'drop')) %>% 
                        full_join(hbo %>% group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(hbo), total = n(), .groups = 'drop')) %>% 
                        full_join(amazon %>% group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(amazon), total = n(), .groups = 'drop')) %>% 
                        full_join(apple %>% group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(apple), total = n(), .groups = 'drop'))
+```
+
+
+#movies and shows by %
+```{r pressure, echo=FALSE}
 #table
 all_totals  
 
-#graph
+#graph by percent
 all_totals %>% 
-  ggplot(aes(platform,percent, fill = type)) + geom_bar(stat ="identity", position = "dodge") + geom_text(aes(label = paste(round(percent), "%")), vjust = -0.5, color = "black", size = 3, position=position_dodge(1))
+  ggplot(aes(platform,percent, fill = type)) + geom_bar(stat ="identity", position = "dodge") + geom_text(aes(label = paste(round(percent), "%")), vjust = -0.5, size = 3, position=position_dodge(1))
+
+#graph by total
+all_totals %>% 
+  ggplot(aes(platform,total, fill = type)) + geom_bar(stat ="identity", position = "dodge") + geom_text(aes(label = total), vjust = -0.5, size = 3, position=position_dodge(1))
+
 
 all_titles %>% 
   group_by(type) %>% summarise(percent = paste(round(100 * n() / nrow(all_titles), digits = 2),"%"), total = n()) %>% 
@@ -80,25 +87,27 @@ all_titles %>%
 #imdb vs tmdb
 ```{r}
 #imdb vs votes
-all_titles %>% ggplot() + aes(imdb_score ,imdb_votes, color = type) + geom_point(na.rm = T, position = 'jitter') + facet_wrap(~ platform)
+all_titles %>% ggplot() + aes(imdb_score ,tmdb_popularity, color = type) + geom_point( alpha = .4, na.rm = T, position = 'jitter') + facet_wrap(~ platform) + scale_y_log10()
 
 #tmdb vs popularity
-all_titles %>% ggplot() + aes(tmdb_score ,tmdb_popularity, color = type) + geom_point(na.rm = T, position = 'jitter') + facet_wrap(~ platform)
+all_titles %>% ggplot() + aes(tmdb_score ,tmdb_popularity, color = type) + geom_point( alpha= .4, na.rm = T, position = 'jitter') + facet_wrap(~ platform) + scale_y_log10()
 
 #imdb vs tmdb
-all_titles %>% ggplot() + aes(tmdb_score ,imdb_score , color = type) + geom_density_2d(na.rm = T) + facet_wrap(~ platform)
-
+all_titles %>% ggplot() + aes(tmdb_score ,imdb_score, color = type) + geom_density_2d(na.rm = T, position = 'jitter')+ facet_wrap(~ platform)
 ```
 #imdb vs tmdb
  - same info but with HISTOGRAMS!!!
 ```{r}
 #imdb
-all_titles %>% filter(imdb_score > 5) %>% ggplot() + aes(imdb_score, fill = type) + geom_histogram(binwidth = 1/3)+facet_wrap(~ platform)
-all_titles %>% ggplot() + aes(imdb_score, fill = 'blue') + geom_histogram()+facet_wrap(~ type)
+all_titles %>% ggplot() + aes(imdb_score, fill = type) + geom_density(alpha = 0.4) +facet_wrap(~ platform)
+
+all_titles %>% ggplot() + aes(imdb_score, fill = type) + geom_density(alpha = 0.4)
 
 #tmbd
-all_titles %>% filter(tmdb_score > 5) %>% ggplot() + aes(tmdb_score, fill = type) + geom_histogram(binwidth = 1/3)+facet_wrap(~ platform)
-all_titles %>% ggplot() + aes(tmdb_score, fill = 'red') + geom_histogram()+facet_wrap(~ type)
+all_titles %>% ggplot() + aes(tmdb_score, fill = type) + geom_density(alpha = 0.4)+facet_wrap(~ platform)
+
+all_titles %>% ggplot() + aes(tmdb_score, fill = type) + geom_density(alpha = 0.4)
+
 ```
 
 
@@ -106,9 +115,28 @@ all_titles %>% ggplot() + aes(tmdb_score, fill = 'red') + geom_histogram()+facet
 all_titles %>% group_by(release_year) %>% summarise(count = n())
 
 all_titles = all_titles %>% mutate(decade = paste(floor(release_year/10)*10))
+
 all_titles %>% group_by(decade) %>% summarise(count = n())
+
+
+```
+
+
+
+
+```{r}
 nw = all_titles %>% filter(age_certification != is.na(age_certification))%>%group_by(age_certification) %>% summarise(count = n())
+
 nw %>% mutate(description <- c("General Audience","No One 17 and Under Admitted","Parental Guidance Suggested","Parents Strongly Cautioned","Restricted", "Parents Strongly Cautioned","General Audience", "Mature Audience Only", "Parental Guidance Suggested", "All Children", "Directed to older children", "Directed to older children"
 ))
+
+```
+
+```{r}
+all_titles %>% 
+  separate_rows(production_countries, sep = ",") %>% 
+  group_by(production_countries) %>% 
+  summarise(count = n())
+all_titles%>% strsplit(genres, ",") %>% group_by(genres) %>% summarise(n())
 
 ```
