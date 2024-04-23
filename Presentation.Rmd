@@ -2,11 +2,8 @@
 title: "What's Streaming"
 author: "Gabriel Aguirre"
 date: "2024-04-18"
-output: 
-  slidy_presentation:
-    warning: false
-    message: false
-  
+output: slidy_presentation
+
 ---
 
 ```{r setup, include=FALSE,echo=FALSE}
@@ -19,22 +16,28 @@ library(ggplot2)
 library(tidyr)
 library(stringr)
 library(ggthemes)
-library(RColorBrewer)
 library(gridExtra)
 ```
 
 
 ## The Data
 
-This data goes over has information and ratings about shows and movies from that were streaming during March 2023. We will compare ratings, genres, and popularities of what was airing on various streaming platform during March 2023.
+This data goes over has information and ratings about shows and movies from that were streaming during March 2023. We will compare ratings, genres, and popularity of what was airing on various streaming platform during March 2023.
 
 Streaming platforms include:
  
  - Amazon Prime
- - Neflix
+ - Netflix
  - Disney+
  - HBO Max
  - Apple TV
+
+## Cleaning and Consolidation
+
+This all the data was split by platform originally so i did have to combine them into one. Luckily they were identical in terms of categories and what it shows. 
+
+ - There are overlapping titles because some movies and shows are streamed on multiple platforms. Category called platform was added for clarity
+ - TMDB and IMDB are different sites with different users so some NA values are expect as some titles aren't scored depending in the site used 
 
 
 ## More abut the Data
@@ -107,9 +110,8 @@ all_totals = full_join(disney %>% group_by(platform, type) %>% summarise(percent
 ```
 
 
-
 ## Movies and Shows
-We are going to look at how many shows and movies there are in the whole data set. Below we have comparisons of the percentages between platforms
+First we are going to look at how many shows and movies there are in the whole data set. Below we have comparisons of the percentages between platforms
 ```{r, echo=FALSE}
 # Shows to Movies on each streaming platform
 
