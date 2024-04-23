@@ -1,8 +1,12 @@
 ---
-title: "Presentation"
+title: "What's Streaming"
 author: "Gabriel Aguirre"
 date: "2024-04-18"
-output: html_document
+output: 
+  slidy_presentation:
+    warning: false
+    message: false
+  
 ---
 
 ```{r setup, include=FALSE,echo=FALSE}
@@ -14,45 +18,83 @@ library(dplyr)
 library(ggplot2)
 library(tidyr)
 library(stringr)
+library(ggthemes)
+library(RColorBrewer)
+library(gridExtra)
 ```
 
 
-# Data
-```{r, echo=FALSE}
-# add column to indicate streaming platform
+## The Data
 
+This data goes over has information and ratings about shows and movies from that were streaming during March 2023. We will compare ratings, genres, and popularities of what was airing on various streaming platform during March 2023.
+
+Streaming platforms include:
+ 
+ - Amazon Prime
+ - Neflix
+ - Disney+
+ - HBO Max
+ - Apple TV
+
+
+## More abut the Data
+This data includes information about the following:
+ 
+ - *platform* -> Indicates what streaming platform each show or movie is currently on
+ - *title* -> The title of each movie and show
+ - *type* -> Indicates if the data is a movie or a show
+ - *release_year* -> Release year
+ - *age_verification* -> this is the age verification i.e.(PG-13, R)
+ - *runtime* -> runtime of the movie or show
+ - *genres* -> genre, some films can have multiple genres
+ - *production_countries* -> who produced the film. They can also have multiple production countries
+ - *seasons* -> This only applies to shows and indicates how many seasons it has
+ - *imdb_score* -> rating from 0-10 on IMDB
+ - *imdb_votes* -> amount of votes placed on the ratings for each film
+ - *tmdb_score* -> rating from 0-10 on TMDB
+ - *tmdb_popularity* -> popularity rating from TMDB
+ - *decade* -> what decade each film was made in
+ 
+```{r, echo=FALSE,message = F}
+# read in data for each streaming platform
 netflix = read_csv("netflix_titles.csv", show_col_types = FALSE)
 hbo = read_csv("hbo_titles.csv", show_col_types = FALSE)
 amazon = read_csv("amazon_titles.csv", show_col_types = FALSE)
 disney = read_csv("disney_titles.csv", show_col_types = FALSE)
 apple = read_csv("apple_titles.csv", show_col_types = FALSE)
 
-# remove unwanted data 'id', and 'imdb_id'
-
-netflix = netflix %>% subset(select = -c(id, imdb_id))
-amazon = amazon %>% subset(select = -c(id, imdb_id))
-apple = apple %>% subset(select = -c(id, imdb_id))
-hbo = hbo %>% subset(select = -c(id, imdb_id))
-disney = disney %>% subset(select = -c(id, imdb_id))
+# remove unwanted data 'id', 'description' and 'imdb_id'
+netflix = netflix %>% subset(select = -c(id, imdb_id, description))
+amazon = amazon %>% subset(select = -c(id, imdb_id, description))
+apple = apple %>% subset(select = -c(id, imdb_id, description))
+hbo = hbo %>% subset(select = -c(id, imdb_id, description))
+disney = disney %>% subset(select = -c(id, imdb_id, description))
 
 # add column to show show streaming platforms and reorganize columns
-
 netflix = netflix %>% mutate(platform = 'Netflix') %>% select(platform, everything())
 disney = disney %>% mutate(platform = 'Disney') %>% select(platform, everything())
 hbo = hbo %>% mutate(platform = 'HBO Max') %>% select(platform, everything())
 apple = apple %>% mutate(platform = 'Apple TV') %>% select(platform, everything())
 amazon = amazon %>% mutate(platform = 'Amazon') %>% select(platform, everything())  
-```
-# combine
- - all data sets as one : all_titles
- - date for just movies : all_movies
- - data for just shows  : all_shows
-```{r, echo=FALSE}
 
+#combine data sets
 all_titles = full_join(netflix, amazon) %>% full_join(apple) %>% full_join(disney) %>% full_join(hbo)
 
-all_movies = all_titles %>% filter(type == 'MOVIE')
+#add a list of decades
+all_titles = all_titles %>% mutate(decade = paste(floor(release_year/10)*10))
 
+#clean up values to split later
+all_titles = all_titles %>% 
+  filter(release_year >= 1920, !is.na(genres)) %>% 
+  mutate(genres = str_replace_all(genres,"\\[|\\]", ""),
+         genres = str_replace_all(genres,"\\'|\\'", ""), 
+         genres = str_replace_all(genres," ", "") , 
+         production_countries = str_replace_all(production_countries,"\\[|\\]", ""), 
+         production_countries = str_replace_all(production_countries,"\\'|\\'", ""), 
+         production_countries = str_replace_all(production_countries," ", "") )
+
+#split between movies and shows
+all_movies = all_titles %>% filter(type == 'MOVIE')
 all_shows = all_titles %>% filter(type == 'SHOW')
 
 #shows the ratio of movies to shows for each separate platform in one table
@@ -61,82 +103,290 @@ all_totals = full_join(disney %>% group_by(platform, type) %>% summarise(percent
                        full_join(hbo %>% group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(hbo), total = n(), .groups = 'drop')) %>% 
                        full_join(amazon %>% group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(amazon), total = n(), .groups = 'drop')) %>% 
                        full_join(apple %>% group_by(platform,type) %>% summarise(percent = 100 * n() / nrow(apple), total = n(), .groups = 'drop'))
+
 ```
 
 
-#movies and shows by %
-```{r pressure, echo=FALSE}
-#table
-all_totals  
 
-#graph by percent
+## Movies and Shows
+We are going to look at how many shows and movies there are in the whole data set. Below we have comparisons of the percentages between platforms
+```{r, echo=FALSE}
+# Shows to Movies on each streaming platform
+
+#Plotted by percentage
 all_totals %>% 
-  ggplot(aes(platform,percent, fill = type)) + geom_bar(stat ="identity", position = "dodge") + geom_text(aes(label = paste(round(percent), "%")), vjust = -0.5, size = 3, position=position_dodge(1))
+  ggplot(aes(platform,percent, fill = type)) + geom_bar(stat ="identity", position = "dodge")+labs(x = "By Platform", y = "Percentage", title = "Movies & Shows (%)") + geom_text(aes(label = paste(round(percent, digits = 2), "%")), vjust = -0.5, size = 3, position=position_dodge(1))
 
-#graph by total
-all_totals %>% 
-  ggplot(aes(platform,total, fill = type)) + geom_bar(stat ="identity", position = "dodge") + geom_text(aes(label = total), vjust = -0.5, size = 3, position=position_dodge(1))
+```
+
+---
+
+Here we have a table of the exact counts:
+
+```{r, echo=FALSE}
+# Shows to Movies on each streaming platform
+all_totals
+```
 
 
+---
+
+Here we have the overall totals and percentages separated by type:
+
+```{r, echo=FALSE}
+ 
+all_totals%>% group_by(type) %>% summarise(sum(total))
+# Shows to Movies overall
 all_titles %>% 
   group_by(type) %>% summarise(percent = paste(round(100 * n() / nrow(all_titles), digits = 2),"%"), total = n()) %>% 
-  ggplot(aes(type,percent, fill = type)) + geom_bar(stat ="identity", position = "dodge") + geom_text(aes(label = percent), vjust = -0.5, color = "black", size = 3, position=position_dodge(1))
+  ggplot(aes(type,total, fill = type)) + geom_bar(stat ="identity")+labs(x = "By Type", y = "Percentage", title = "Movies & Shows (%)") + geom_text(aes(label = percent), vjust = -0.5, size = 3, position=position_dodge(1))
+
 ```
 
+
+
+## IMDb and TMDb
+This density plot compares ratings from IMDb and rating from TMDb on each platform
+ - IMDb (Internet Movie Database)
+ - TMDb (The Movie Database)
+ 
+```{r, echo=FALSE,message = F}
 
 #imdb vs tmdb
-```{r}
-#imdb vs votes
-all_titles %>% ggplot() + aes(imdb_score ,tmdb_popularity, color = type) + geom_point( alpha = .4, na.rm = T, position = 'jitter') + facet_wrap(~ platform) + scale_y_log10()
-
-#tmdb vs popularity
-all_titles %>% ggplot() + aes(tmdb_score ,tmdb_popularity, color = type) + geom_point( alpha= .4, na.rm = T, position = 'jitter') + facet_wrap(~ platform) + scale_y_log10()
-
-#imdb vs tmdb
-all_titles %>% ggplot() + aes(tmdb_score ,imdb_score, color = type) + geom_density_2d(na.rm = T, position = 'jitter')+ facet_wrap(~ platform)
+all_titles %>% ggplot() + aes(tmdb_score ,imdb_score, color = type) + geom_density_2d(na.rm = T, position = 'jitter')+labs(x = "IMDb Rating", y = "TMDb Rating", title = "IMDb & TMDb Ratings")+ facet_wrap(~ platform)
 ```
-#imdb vs tmdb
- - same info but with HISTOGRAMS!!!
-```{r}
-#imdb
-all_titles %>% ggplot() + aes(imdb_score, fill = type) + geom_density(alpha = 0.4) +facet_wrap(~ platform)
+ 
+ - IMDB and TMDB scores have a mostly linear correlation
+ - TMDB tends have slightly higher scores
+ - Shows have higher scores than Movies
 
-all_titles %>% ggplot() + aes(imdb_score, fill = type) + geom_density(alpha = 0.4)
+## IMDb vs TMDb continued...
+ 
+ - this will also show how similar the scores are when it comes to shows and movies
+```{r, echo=FALSE,message = F}
+d1 = all_titles%>%filter(!is.na(imdb_score)) %>% ggplot() + aes(imdb_score, fill = type) + geom_density(alpha = 0.4)+labs(x = "By IMDb Rating", title = "IMDb & TMDb Densities")
 
-#tmbd
-all_titles %>% ggplot() + aes(tmdb_score, fill = type) + geom_density(alpha = 0.4)+facet_wrap(~ platform)
+d2 =all_titles %>%filter(!is.na(tmdb_score)) %>% ggplot() + aes(tmdb_score, fill = type) + geom_density(alpha = 0.4)+labs(x = "By TMDb Rating")
 
-all_titles %>% ggplot() + aes(tmdb_score, fill = type) + geom_density(alpha = 0.4)
-
+grid.arrange(d1, d2)
 ```
 
+## Top Tens!!
 
-```{r}
-all_titles %>% group_by(release_year) %>% summarise(count = n())
+Before we move on we will take a quick look at the to ten highest rated shows and movies. Lets see if we recognize something
 
-all_titles = all_titles %>% mutate(decade = paste(floor(release_year/10)*10))
+Here are the top ten Movies:
 
-all_titles %>% group_by(decade) %>% summarise(count = n())
+```{r, echo=FALSE}
+all_movies %>% 
+  filter(!is.na(imdb_score), !is.na(tmdb_score))%>%
+  distinct(title, .keep_all = TRUE)%>%
+  arrange(desc(imdb_score), tmdb_score)%>% 
+  head(10)%>% 
+  select(platform, title, imdb_score)
+```
 
+## More Top Tens!
+
+Top ten Shows:
+
+```{r, echo=FALSE}
+all_shows %>% 
+  filter(!is.na(imdb_score), !is.na(tmdb_score))%>%
+  distinct(title, .keep_all = TRUE)%>%
+  arrange(desc(imdb_score), tmdb_score) %>%
+  slice_head(n = 10)%>% 
+  select(platform, title, imdb_score)
+```
+
+## Genres
+
+Now we will look at all the genres provided by the streaming services. Let's see if there are any variations on what is normally streamed on them.
+
+Plotted each genre by the number of times the tag appeared on all streaming platforms:
+```{r, echo=FALSE}
+g1=all_movies %>% 
+  separate_rows(genres, sep = ",") %>% filter(genres != "") %>% group_by(genres,type) %>% summarise(total = n(),  .groups = 'drop') %>% ggplot(aes(reorder(genres, total), total))+ geom_bar(stat ="identity", )+labs(x = "By Genre", y = "Total", title = "Genres by Type")+ coord_flip() + facet_wrap(~type)
+
+g2=all_shows %>% 
+  separate_rows(genres, sep = ",") %>% filter(genres != "") %>% group_by(genres,type) %>% summarise(total = n(),  .groups = 'drop') %>% ggplot(aes(reorder(genres, total), total))+ geom_bar(stat ="identity")+labs(x = "", y = "Total", title = "")+ coord_flip() + facet_wrap(~type)
+
+grid.arrange(g1,g2, ncol =2)
+```
+ 
+ - Drama and comedy are the most common
+ - movies favor genres that drive the story such as action, romance and thrillers
+ - Shows favor more stylized genres like animation, scifi and fantasy
+
+## Genres
+Plotted each genre by the  avg ratings:
+
+```{r, echo=FALSE}
+all_genres =all_titles %>% 
+  separate_rows(genres, sep = ",") %>% filter(!is.na(imdb_score), genres != "")%>% group_by(genres, type) %>% summarise(rating = mean(imdb_score), total = n(),  .groups = 'drop')
+g4=all_genres%>%
+  filter(type == "MOVIE")%>%arrange(desc(rating))%>%ggplot(aes(reorder(genres, rating), rating)) + geom_bar(stat = 'identity')+labs(x = "By Genre", y = "Total", title = "Genres by Avg Ratings")+ coord_flip() + facet_wrap(~type)
+g3=all_genres%>%
+  filter(type == "SHOW") %>% arrange(desc(rating))%>%ggplot(aes(reorder(genres, rating), rating)) + geom_bar(stat = 'identity')+labs(x = "", y = "Total", title = "") + coord_flip() + facet_wrap(~type)
+grid.arrange(g4,g3, ncol =2)
+
+```
+
+ - It seems that the more there is of a certain genre there is the more likely it is to have a lower average rating
+
+## As the Decades go by...
+Here we will look at trends as the decades pass.
+
+First we will see how many movies from each decade were on streaming platforms at the time:
+
+```{r, echo=FALSE}
+all_movies %>% ggplot(aes(decade, fill = platform))+geom_bar(position = 'dodge')+labs(x = "By Decade", y = "Total")  +
+  theme(axis.text.x = element_text(angle = 45))+ facet_wrap(~ type)
+
+```
+
+ - Amazon has the most movies, and is more likely to have movies released before the 2000s
+ - Netflix and Apple almsot exclusively have movies made after 2010
+
+
+For fun here are the the top movies of each decade:
+```{r, echo=FALSE}
+
+all_movies %>% filter(!is.na(imdb_score), !is.na(tmdb_score))%>%
+  group_by(decade) %>%
+  arrange(desc(imdb_score), tmdb_score) %>%
+  slice_head(n = 1)%>% select(decade, title,imdb_score) %>% arrange(desc(decade))
+```
+
+
+---
+ 
+Now we will look at Shows:
+ 
+```{r, echo=FALSE}
+all_shows %>% ggplot(aes(decade, fill = platform))+geom_bar(position = 'dodge')+labs(x = "By Decade", y = "Total")  +
+  theme(axis.text.x = element_text(angle = 45))+ facet_wrap(~ type)
+```
+ 
+ - Shows seem to only become popular after the 80s
+ - Despite having less overall titles Netflix streams more shows
+
+
+For fun again, here are top shows for each decade:
+
+```{r, echo=FALSE}
+
+all_shows %>% filter(!is.na(imdb_score), !is.na(tmdb_score))  %>%
+  group_by(decade) %>%
+  arrange(desc(imdb_score), tmdb_score) %>%
+  slice_head(n = 1) %>% select(decade, title,imdb_score) %>% arrange(desc(decade))
 
 ```
 
 
+## As the Years go by...
 
+Now we will see if movies and shows got better as we move to the present.
 
-```{r}
-nw = all_titles %>% filter(age_certification != is.na(age_certification))%>%group_by(age_certification) %>% summarise(count = n())
+First we will look at how EVERYTHING did:
 
-nw %>% mutate(description <- c("General Audience","No One 17 and Under Admitted","Parental Guidance Suggested","Parents Strongly Cautioned","Restricted", "Parents Strongly Cautioned","General Audience", "Mature Audience Only", "Parental Guidance Suggested", "All Children", "Directed to older children", "Directed to older children"
+```{r, echo=FALSE, message=FALSE}
+all_titles%>% filter(!is.na(imdb_score)) %>% ggplot(aes(release_year, imdb_score, color = type)) +geom_point(alpha = .4) + geom_smooth(aes(), color = "purple", fill = "green")+labs(x = "By Year", y = "Rating", title = "Ratings Overtime")
+
+```
+
+ - this follows the trend that Shows tend to do better than movies
+ - As more titles have been released the quality has increased and decreased
+ - Scores are slowly trending downwards 
+
+---
+
+Here is a comparison of each platform:
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+
+all_titles%>% filter(!is.na(imdb_score)) %>% ggplot(aes(release_year, imdb_score))+geom_point(alpha = .4, color = 'darkgreen') +geom_smooth(aes( color = type))+labs(x = "By Year", y = "Rating", title = "Ratings Overtime by Platform")+ facet_wrap(~platform)
+```
+
+ - all platforms stream newer titles
+ - Apple and Netflix do not have anything older than 1950
+ - trend continues for most platforms showing that newer titles score worse
+ - Newer Disney titles are starting to score better
+ 
+## Age Certification
+
+Lets take a quick look a age certs.
+Below we have the age certifications, plotted by popularity:
+
+```{r, echo=FALSE}
+certs = all_titles %>% 
+  filter(age_certification != is.na(age_certification))%>%group_by(age_certification) %>% summarise(count = n())
+certs= certs %>% 
+  mutate(description = c("General Audience","No One 17 and Under Admitted","Parental Guidance Suggested","Parents Strongly Cautioned","Restricted", "(TV) Parents Strongly Cautioned","(TV) General Audience", "(TV) Mature Audience Only", "(TV) Parental Guidance Suggested", "(TV) All Children", "(TV) Directed to older children", "(TV) Directed to older children"
 ))
+certs %>% arrange(age_certification) %>% select(age_certification, description, count)
 
 ```
 
-```{r}
-all_titles %>% 
-  separate_rows(production_countries, sep = ",") %>% 
-  group_by(production_countries) %>% 
-  summarise(count = n())
-all_titles%>% strsplit(genres, ",") %>% group_by(genres) %>% summarise(n())
+ - Mature content has the most availability for shows and movies
+ - This is followed closely by PG content for movies
 
+## Age Certification
+
+Here we will look at how age certifications fare against popularity and ratings
+
+Popularity;
+
+```{r, echo=FALSE}
+avgcerts= all_titles %>% 
+  filter(!is.na(tmdb_popularity), age_certification != "")%>% group_by(age_certification, type) %>% summarise(rating = mean(tmdb_popularity), total = n(),  .groups = 'drop')
+avgcerts %>%
+  filter(!is.na(age_certification)) %>% ggplot(aes(reorder(age_certification, rating), rating, fill = type)) +  geom_bar(stat = "identity")+labs(x = "Age Certification", y = "Popularity") +
+  theme(axis.text.x = element_text(angle = 45))
 ```
+
+ - PG rated movies is more popular than rated R movies
+ - Shows follow the same trend with their PG counterparts
+ 
+---
+
+Ratings:
+
+```{r, echo=FALSE}
+
+avgcerts= all_titles %>% 
+  filter(!is.na(imdb_score), age_certification != "")%>% group_by(age_certification, type) %>% summarise(rating = mean(imdb_score), total = n(),  .groups = 'drop')
+avgcerts %>%
+  filter(!is.na(age_certification)) %>% ggplot(aes(reorder(age_certification, rating), rating, fill = type)) +  geom_bar(stat = "identity")+labs(x = "Age Certification", y = "Avg Rating") +
+  theme(axis.text.x = element_text(angle = 45))
+```
+
+ - Movies for younger audiences have better ratings
+ - TV-MA movies is the second highest rated age certification
+ 
+## Conclusions
+
+ 1. **Movies & Shows:** 
+   - Most pplatforms favor streaming movies over shows 
+   - Apple TV has more shows than movies
+   - overall ther are more movies than shows available
+ 2. **IMDb & TMDb:**
+   - Mostly linear correlation between ratings for IMDB and TMDB
+   - Shows rate better than movies
+   - Amazon has a majority of the ratings that ar lower than 5
+ 3. **Genres:** 
+   - Dramas and comedies have the most content
+   - animation and sci-fi appear more on shows
+   - thriller and romans appear more on movies
+   - It seems that the more content a genre has the lower its avg rating is
+  4. **Years:**
+   - streaming platforms mostly stream content released post 1990s
+   - Amazon have the most variety for releases
+   - Netflix strems the newly released shows.
+   - Most shows available are from  2000 - 2023
+   - ratings seem to decrease the newer the movie or show is
+  5. **Age Cert.:**
+   - Adult rated Shows and movies are the most popular
+   - content for teens and pre-teens seem seem to have the highest ratings
+ 
+

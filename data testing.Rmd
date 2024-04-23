@@ -173,7 +173,51 @@ all_movies %>% ggplot() + aes(tmdb_score, fill = platform) + geom_histogram()+fa
  - popularity and score vs age
  - 
 ```{r}
+#graph by total
+all_totals %>% 
+  ggplot(aes(platform,total, fill = type)) + geom_bar(stat ="identity", position = "dodge") + geom_text(aes(label = total), vjust = -0.5, size = 3, position=position_dodge(1))
 
+
+
+#imdb vs votes
+all_titles %>% ggplot() + aes(imdb_score ,imdb_votes, color = type) + geom_density_2d( alpha = .4, na.rm = T, position = 'jitter') + facet_wrap(~ platform)+scale_y_log10()
+#tmdb vs popularity
+all_titles %>% ggplot() + aes(tmdb_score ,tmdb_popularity, color = type) + geom_density_2d( alpha= .4, na.rm = T, position = 'jitter') + facet_wrap(~ platform) + scale_y_log10()
+
+
+#tmbd
+all_titles %>% ggplot() + aes(tmdb_score, fill = type) + geom_density(alpha = 0.4)+facet_wrap(~ platform)
+
+#imdb
+all_titles %>% ggplot() + aes(imdb_score, fill = type) + geom_density(alpha = 0.4) +facet_wrap(~ platform)
+
+d3 = all_genres %>% filter(type == 'MOVIE') %>% ggplot(aes(reorder(genres, popularity), popularity))+ geom_bar(stat ="identity") + coord_flip()+ facet_wrap(~type)
+d4 = all_genres %>% filter(type == 'SHOW') %>% ggplot(aes(reorder(genres, popularity), popularity))+ geom_bar(stat ="identity") + coord_flip()+ facet_wrap(~type)
+grid.arrange(d3,d4, ncol = 2)
+
+
+all_shows %>% separate_rows(genres, sep = ",") %>% filter(!is.na(imdb_score), genres != "") %>% ggplot(aes(genres, imdb_score))+ geom_bar(stat ="identity")+ coord_flip()
+
+all_movies %>% separate_rows(genres, sep = ",") %>% filter(!is.na(imdb_score), genres != "") %>% ggplot(aes(genres, imdb_score))+ geom_bar(stat ="identity")+ coord_flip()
+
+all_genres =all_titles %>% 
+  separate_rows(genres, sep = ",") %>% filter(!is.na(imdb_votes), genres != "")%>% group_by(genres, type) %>% summarise(popularity = weighted.mean(imdb_votes, imdb_votes), total = n(),  .groups = 'drop')
+
+all_titles %>% separate_rows(genres, sep = ",")%>% filter(genres %in% c("drama", "comedy", "thriller", "animation")) %>%  arrange(desc(imdb_score)) %>% group_by(genres ) %>% summarise(most_popular = head(title, 3), type = first(type), ) 
+
+ all_titles %>% filter( genres !="") %>% arrange(desc(imdb_score))%>% select(genres, title, platform) %>% head(10)
+all_genres %>% ggplot(aes(genres, popularity)) + geom_bar(stat = 'identity') + coord_flip() + facet_wrap(~type)
+all_genres %>% ggplot(aes(genres, popularity)) + geom_bar(stat = 'identity') + coord_flip() + facet_wrap(~type)
+ 
+all_movies %>% separate_rows(genres, sep = ",") %>% filter(genres != "") %>% group_by(genres,type) %>% summarise(total = n(),  .groups = 'drop') %>% ggplot(aes(genres, total))+ geom_bar(stat ="identity", )+ coord_flip() + facet_wrap(~type)
+
+all_shows %>% separate_rows(genres, sep = ",") %>% filter(genres != "") %>% group_by(genres,type) %>% summarise(total = n(),  .groups = 'drop') %>% ggplot(aes(genres, total))+ geom_bar(stat ="identity")+ coord_flip() + facet_wrap(~type)
+
+avgcerts= all_titles %>% 
+  filter(!is.na(imdb_score), age_certification != "")%>% group_by(age_certification, type) %>% summarise(rating = mean(imdb_score), total = n(),  .groups = 'drop')
+avgcerts %>%
+  filter(!is.na(age_certification)) %>% ggplot(aes(age_certification, rating, fill = type)) +  geom_bar(stat = "identity")
+```
 ```
 
 
