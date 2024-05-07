@@ -1,0 +1,336 @@
+---
+title: "What's Streaming"
+author: "Gabriel Aguirre"
+date: ""
+output: html_document
+---
+## The Data
+
+I love to watch shows and movies so it may come as no surprise that I Subscribe to different streaming services. The problem is that this can get expensive so i would rather stay subscribed to just one streaming platform. My goal is to compare these 5 streaming platforms against each other to see which one might be best depending on your preferences. With any luck i will find the one that is best for me.
+
+Since want to compare these platforms it is important that the data is as up to date as possible, and presents the same type of information for each streaming platform. I was able find relevant data that fulfilled these 2 conditions. The data is taken from what each streaming platform had available during the month of March 2023. The only real issue is that each streaming platform has its own data frame instead of sharing one. Below are the steaming services we will be looking at and a link to where I sourced the data
+
+ - Amazon Prime [Link](https://www.kaggle.com/datasets/dgoenrique/amazon-prime-movies-and-tv-shows)
+ - Netflix  [Link](https://www.kaggle.com/datasets/dgoenrique/netflix-movies-and-tv-shows) 
+ - Disney+  [Link](https://www.kaggle.com/datasets/dgoenrique/disney-movies-and-tv-shows)
+ - HBO Max  [Link](https://www.kaggle.com/datasets/dgoenrique/hbo-max-movies-and-tv-shows)
+ - Apple TV [Link](https://www.kaggle.com/datasets/dgoenrique/apple-tv-movies-and-tv-shows)
+
+## Importing, Cleaning and Consolidation
+
+#### 1. Setting up Libraries
+```{r, message=FALSE,warning=FALSE}
+library(kableExtra)   # customize tables
+library(readr)        # read csv file 
+library(tidyverse)    # adds functions to manipulate the data
+library(ggplot2)      # creates and customizes plots
+library(stringr)      # used to remove items in a string
+library(gridExtra)    # used to arrange my plots
+library(ghibli)       # plot styling
+library(plotly)       # plot styling
+
+```
+
+#### 2. Combining the Data
+
+Because I am using multiple data frames read in separately and combined. Luckily the data is identical so combining it is a simple matter. Before that I had to add an identifier for what streaming platform they came from placed on them before being combined since the data doesn't already have it. this will be called **platform**. I also added a column called **decade** which just takes the release year and adds the corresponding decade it was released in.
+  
+The table on the right shows how often each Streaming platform appears in the top 100. 
+```{r,message = F}
+ # read in data for each streaming platform
+netflix = read_csv("netflix_titles.csv", show_col_types = FALSE)        
+hbo = read_csv("hbo_titles.csv", show_col_types = FALSE)
+amazon = read_csv("amazon_titles.csv", show_col_types = FALSE)
+disney = read_csv("disney_titles.csv", show_col_types = FALSE)
+apple = read_csv("apple_titles.csv", show_col_types = FALSE)
+
+ # add column for streaming platforms and decade released  # removes null values
+netflix = netflix %>% filter(!is.na(imdb_score), !is.na(tmdb_score) ) %>%mutate(platform = 'Netflix',decade = paste(floor(release_year/10)*10))  
+disney = disney %>% filter(!is.na(imdb_score), !is.na(tmdb_score) ) %>%mutate(platform = 'Disney',decade = paste(floor(release_year/10)*10))
+hbo = hbo %>% filter(!is.na(imdb_score), !is.na(tmdb_score) ) %>%mutate(platform = 'HBO Max',decade = paste(floor(release_year/10)*10))
+apple = apple %>% filter(!is.na(imdb_score), !is.na(tmdb_score) ) %>% mutate(platform = 'Apple TV',decade = paste(floor(release_year/10)*10))
+amazon = amazon %>% filter(!is.na(imdb_score), !is.na(tmdb_score) ) %>% mutate(platform = 'Amazon',decade = paste(floor(release_year/10)*10))
+
+ # combine data sets
+all_titles = full_join(netflix, amazon) %>% full_join(apple) %>% full_join(disney) %>% full_join(hbo)
+```
+
+#### 3. Clean up
+
+Next removed data that I was not going to use as there was no information i could extrapolate from the values. I filtered out data that was not rated on **imdb_scores** and **tmdb_scores** to ensure that all titles had been rated on both platforms and ratings aren't skewed because something was only rated on one database. Lastly, i cleaned the variables in the **genres** and category to make it easier to work with.Multi-genre titles exist and it made sense to compare individual genres instead of grouped genres. I used the subset function to remove symbols in the category so i can more easily split the values later.
+
+```{r,message = F}
+
+all_titles = all_titles %>% select(platform, everything()) %>% 
+  subset(select = -c(id, imdb_id, description)) %>%     # remove imdb_id, id and description
+  filter(!is.na(genres)) %>%  # removes null values
+  mutate(genres = str_replace_all(genres,"\\[|\\]", ""),      # remove brackts [] 
+         genres = str_replace_all(genres,"\\'|\\'", ""),      # remove single quotes ''
+         genres = str_replace_all(genres," ", "") ,           # remove spaces around commas
+         production_countries = str_replace_all(production_countries,"\\[|\\]", ""),  # remove brackets
+         production_countries = str_replace_all(production_countries,"\\'|\\'", ""),  # remove single quotes
+        production_countries = str_replace_all(production_countries," ", "") )       # remove spaces
+```
+
+
+## Key Terms
+```{r, echo=FALSE}
+
+all_titles = all_titles%>%
+  select(platform, title,type,release_year, genres, imdb_score, imdb_votes, tmdb_score,tmdb_popularity,everything() )
+
+all_titles = all_titles %>%              # determine highest score AND popularity
+  mutate(avg_scores = (imdb_votes + imdb_score + tmdb_popularity + tmdb_score) / 4)
+#split between movies and shows
+
+
+all_movies = all_titles %>% filter(type == 'MOVIE')
+all_shows = all_titles %>% filter(type == 'SHOW')
+
+# make table for Key Terms
+Category = c("platorm", "title", "type", "release_year", "age_verification", "runtime", "genres", "production_countries", "seasons", "imdb_scores", "imdb_votes", "tmdb_score", "tmdb_popularity", "decade","description")
+
+Description = c("Indicates streaming platform","Title of the show/movie", "Indicates if iy's a show OR movies", "Release year", "Age verification or rating", "Runtime of the show/movie", "Genre(some can share multiple genres)", "Which countries produced the Show/movie", "How many seasons a show had", "Average rating from 1-10 on IMDb", "Total times rated on IMDb per user", "Average rating from 1-10 on TMDb", "Sum of times added to watchlist, favorited and total times rated per user", "What decade the show/movie released","Description for the film/movie" )
+
+info = data.frame(Category, Description)
+info %>% kbl(caption = "    Summary of Key Terms") %>%
+  kable_styling(bootstrap_options = c("condensed", "striped"), font_size = 11) %>%
+  scroll_box(height = "250px")
+
+all_titles %>% arrange(desc(imdb_score)) %>% glimpse()
+```
+
+
+## Movies and Shows
+```{r, echo=FALSE,message=FALSE}
+
+#shows the ratio of movies to shows for each separate platform in one table
+all_totals = 
+  full_join(disney %>% group_by(platform, type) %>%
+              summarise(percent = 100 * n() / nrow(disney), total = n(), .groups = 'drop'), netflix %>%
+              group_by(platform, type) %>%
+              summarise(percent = 100 * n() / nrow(netflix), total = n(), .groups = 'drop')) %>% 
+  full_join(hbo %>%
+              group_by(platform,type) %>% 
+              summarise(percent = 100 * n() / nrow(hbo), total = n(), .groups = 'drop')) %>% 
+  full_join(amazon %>% group_by(platform,type) %>%
+              summarise(percent = 100 * n() / nrow(amazon), total = n(), .groups = 'drop')) %>% 
+  full_join(apple %>% group_by(platform,type) %>% 
+              summarise(percent = 100 * n() / nrow(apple), total = n(), .groups = 'drop'))
+
+# Shows to Movies on each streaming platform
+all_totals %>% kbl(caption = "Summary of Totals") %>%
+  kable_styling(bootstrap_options = c("condensed", "striped"), font_size = 11,position = "float_right", full_width = F)
+```
+
+First we are going to look at how many shows and movies there are in the whole data set. Below is a bar plot displaying the (%) of movies to shows on each streaming platform alongside a table showing the totals. This will help us see what each platform primarily streams and how much it has available to stream. 
+
+There are a couple of things that stand out. It seems streaming services tend to stream movies with platforms like **HBO Max** and **Amazon Prime** having 80% of their platforms consist of movies.By contrast **Apple Tv** is the only platform that consist of mostly shows. Id like to note that we are looking at the (%) of what they stream over their totals because of the disparity between what is available in their data sets. If you look at the table you will notice that **Disney+** and **Apple Tv** barely make up 2,000 of the over 17,000 available titles. This is likely because **Disney+** and **Apple Tv** only stream titles they produced themselves. **Netflix** seems to be the best platform for those who have no preference for shows or movies since it has the least disparity between type while still having over 5,000 available titles.
+
+```{r, echo=FALSE,message=FALSE}
+#Plotted by percentage
+all_totals %>% 
+  ggplot(aes(platform,percent, fill = type)) +
+  geom_bar(stat ="identity", position = "dodge")+
+  labs(x = "Streaming Service", y = "Percentage", title = "Movies vs Shows") +
+  geom_text(aes(label = paste(round(percent, digits = 2), "%")), vjust = -0.5, size = 3, position=position_dodge(1)) +
+  scale_fill_ghibli_d( "MarnieMedium1")
+```
+
+
+## IMDb and TMDb
+
+Before looking at anything else it is a good idea to see if the ratings on **Internet Movie Database(IMDb)** and **The Movie Database(TMDb)** follow the same trends. This is important because it its highly likely that the user base and amount of user varies on each platform. If they don't follow the same trends it will be difficult to tell which database provides a better metric for ratings. below is a density plot that comparing **imdb_scores** against **tmdb_scores**.
+ 
+```{r, echo=FALSE,message = F}
+d1 = all_titles%>%        # Density plot for IMDB  
+  ggplot() + aes(imdb_score, fill = type) +
+  geom_density(alpha = 0.7)+
+  labs(x = "IMDb Rating") +
+  scale_fill_ghibli_d("MarnieMedium1") 
+
+d2 =all_titles %>%        # Density plot for TMDB
+  ggplot() + aes(tmdb_score, fill = type) +
+  geom_density(alpha = 0.7)+
+  labs(x = "TMDb Rating") +
+  scale_fill_ghibli_d("MarnieMedium1")
+
+grid.arrange(d1, d2)           # Combine
+
+```
+
+Ratings for **IMDb** and **TMDb** follow the same trends. A majority of titles have ratings between 6 and 8. Interestingly shows are generally rated higher than movies. This is also the trend when we compare the scores by platform below. This is likely because show rely more on views to be renewed for more seasons. The better the show the more seasons it will get.
+The plot below shows that the ratings have a fairly linear correlation. Titles on both databases may vary by a point or two but will still have similar scores. While shows are rated higher on most platforms, movies on **Apple TV** have ratings just as high as show ratings. **Amazon** streams some  worst rated movies and has the most disparity between shows and movies. It seems the more movies available on a platform the more lower rated movies it will have.
+
+```{r, echo=FALSE,message = F}
+# imdb vs tmdb 2d density plot
+ plotA = all_titles %>%
+  ggplot(aes(imdb_score, tmdb_score, color = type)) +
+  geom_density_2d(linewidth = .75)+
+  scale_color_manual(values = c( "#1c77a3ff", "#5e2d3fff")) +
+  labs(x = "IMDb Rating", y = "TMDb Rating", title = "IMDb & TMDb by Platform") +
+  facet_wrap(~ platform)+
+  theme(strip.background = element_blank(),panel.spacing = unit(1, "lines"))
+
+ ggplotly(plotA)
+```
+
+## Top 100
+```{r, echo=FALSE}
+topmovies = all_movies %>%
+  distinct(title, .keep_all = TRUE)%>%
+  arrange(desc(avg_scores))%>%                     # remove duplicate titles
+  mutate(top100 = row_number()) %>%
+  select(top100, platform, title, everything())%>%       # number rows
+  head(100)
+
+topshows = all_shows %>%
+  distinct(title, .keep_all = TRUE)%>%
+  arrange(desc(avg_scores))%>%                     # remove duplicate titles
+  mutate(top100 = row_number()) %>%
+  select(top100, platform, title, seasons, everything())%>%       # number rows
+  head(100)
+
+t1 <- topmovies %>%
+  group_by("Platform" = platform) %>% summarise("Total Movies" = n())
+t2 <- topshows %>%
+  group_by("Platform" = platform) %>% summarise("Total Shows" = n())
+
+combinedt <- full_join(t1, t2, by = "Platform")
+
+combinedt %>% kbl(caption = "Summary of Top 100") %>%
+  kable_styling(bootstrap_options = c("condensed", "striped"), font_size = 11, position = "float_right",full_width = F)
+
+```
+I am curious to see what the top 100 shows and movies are. I originally planned to organize it by ratings alone but realized that there are many titles that were rated 10/10 but only had a handful of **votes** on IMDb or a low **popularity** score on TMDb. Shows with high ratings but low vote counts might not accurately represent the general audience popularity so it is best to account for **votes** and **popularity**. The value I use to find this is called **avg_scores** which is the average of all scores and votes.
+
+I went ahead and made a table so we can see how often each streaming service appears in the top 100 lists. The first thing you notice is how little **Amazon Prime** and **Apple TV** appear on the lists with **Apple TV** only having 1 title. **Disney+** appears on almost half the list for movies with 40 titles. By contrast **Netflix** has 48 shows in the top, almost double the amount of the second highest entry. **HBO Max**  is the most balanced streaming service having at least 25 titles on each list. 
+
+**Disney+** and **HBO Max** are the best options for cinephiles looking to stream the best movies. **Netflix** Is the place for those who love to binge watch shows.
+
+
+#### Top 100 Movies
+```{r, echo=FALSE}
+topmovies %>% kbl() %>%
+  kable_styling(bootstrap_options = c("condensed", "striped"), font_size = 11) %>%
+  scroll_box(height = "300px")
+```
+
+
+#### Top 100 Shows
+```{r, echo=FALSE}
+
+topshows %>% kbl() %>%
+  kable_styling(bootstrap_options = c("condensed", "striped"), font_size = 11) %>%
+  scroll_box(height = "300px")
+```
+
+
+
+## As the Years go by...
+Something to consider is how ratings are effect by release year. Are modern films better or do we just not make them like we used to?
+
+It is evident that we produce more shows and movies than we ever have, however with most things in life, more does not mean better. The plot shows us that as more and new films are made the range between the highest rated and lowest rated films widens each year. The regression line also shows that ratings are beginning to drop for newer releases. This could be a byproduct of the pandemic, or simply less care being put into making these new films.
+
+```{r, echo=FALSE, message=FALSE}
+all_titles %>% ggplot(aes(release_year, imdb_score, color = type)) +
+  geom_point(position =  "jitter", alpha = .4) + 
+  geom_smooth(color = "#1c77a3ff", fill = "#c5a387")+
+  labs(x = "By Year", y = "Rating", title = "Ratings Overtime") +
+  scale_color_ghibli_d("MarnieMedium1") + facet_wrap(~type, scales = "free_x")
+
+```
+
+A pattern seen in earlier plots also reemerges as we see **shows** rating better than **movies** across all platforms, except for **Apple TV**, whose movies and shows have similar ratings. It's also difficult to see any changes over the years for **Apple TV** because much of their content was released post 2010. Every other platform displays a gradual decrease in ratings. Content on **Amazon** and **Netflix** has the greatest disparity between ratings as time passes. This goes to show that even though some of the worst rated films have been release in the past 20 years, we have also had some of the highest rated films released in the same time. 
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+
+all_titles%>%
+  ggplot(aes(release_year, imdb_score, color = type))+
+  geom_point(alpha = .4) +
+  geom_smooth(color = "#1c77a3ff", fill = "#c5a387")+
+  labs(x = "By Year", y = "Rating", title = "Ratings Overtime")+
+  facet_wrap(~platform, scale = "free_x") +
+  scale_color_ghibli_d("MarnieMedium1")
+
+```
+
+## As the Decades go by...
+
+Something worth looking into is the age of some of the content available on steaming services. To do this I opted to look at the years by the decade to make it easier to visualize. It was surprising to learn that **Amazon Prime** and **HBO Max** have content that was released back in the 1910s. **Dinsey** being around for as long as it has also has some older content released in the 40s. **Apple TV** almost exclusively streams content made post 2010. Again this is because they on stream what they make and it is still one of the newer platforms.**Netflix** ha the most newly release shows available. This falls in line with its transitions to a production company and the rise of Netflix Original Series'.
+```{r, echo=FALSE}
+
+plotD = all_titles %>% ggplot(aes(decade, fill = platform))+
+  geom_bar(position = 'dodge')+
+  labs(x = "By Decade", y = "Total")+
+  facet_wrap(~ type, scales = "free_x") +
+  scale_fill_ghibli_d("MarnieMedium1")+
+  coord_flip()
+
+ggplotly(plotD)
+```
+
+#### Best of Every Decade
+```{r, echo=FALSE}
+
+all_titles %>%
+  group_by(decade,type) %>%
+  arrange(desc(avg_scores)) %>%
+  slice_head(n = 1)%>%
+  select(decade, title, everything()) %>%
+  arrange(desc(decade))%>%
+  kbl() %>%
+  kable_styling(bootstrap_options = c("condensed", "striped"), font_size = 11) %>% scroll_box(height = "300px")
+```
+
+
+
+## Genres
+ 
+ Everyone has their preferences on what they like to watch. Some people love reality shows, while I personally like a good fantasy. You will want your preferred streaming platform to offer a wide selection of the **genres** you like, so lets see what streaming platforms have to offer. 
+ 
+**Dramas** and **comedies** are the most common genre, but we have to remember that most movies and shows are multi genre. Its safe to say that most films today are **Dramas** or **comedies**, and sometimes both. There is a difference in the variety of sub genres that **shows** offer over **movies**. Movies are often tagged as **action**, **romance**, or **thrillers**. When it comes to shows we have more to pick from. There are more genres being streamed like **reality**, **animation**, **fantasy**, and **scifi**. Shows seem to be more popular with genres that change the style and world of the story.
+```{r, echo=FALSE}
+plotB = all_titles %>% 
+  separate_rows(genres, sep = ",") %>%         # separate genres tags
+  filter(genres != "") %>%                  
+  group_by(genres, type) %>%            # group by genres
+  summarise(total = n(),  .groups = 'drop') %>%         # sum total
+  ggplot(aes(reorder(genres, total), total, fill = type))+
+  geom_bar(stat ="identity" )+
+  labs(x = "Genre", y = "Total", title = "Genres by Type")+
+  coord_flip() + facet_wrap(~type, scales = "free_x") +
+  scale_fill_ghibli_d("MarnieMedium1")
+
+ggplotly(plotB)
+```
+When we plot this by platform we see a trend what we see in genres by movies above. The outliers here are **Apple TV** and **Dinsey+**. This is likely because both of these platforms are smaller and demonstrate more selectivity over the content they stream. **Disney+** features genres that are more family friendly considering their general audience. This is most obvious with the spikes in genres like **family** and **animation**.
+
+
+```{r, echo=FALSE}
+plotC = all_titles %>% 
+  separate_rows(genres, sep = ",") %>% filter(genres != "") %>%                    # separate genres tags
+  group_by(genres,platform) %>% summarise(total = n(),  .groups = 'drop') %>%        # group by genres
+  ggplot(aes(reorder(genres, total), total, fill = platform)) +
+  geom_bar(stat ="identity", width = .7) +
+  labs(x = "Genre", y = "Total", title = "Genres by Platform") +
+  coord_flip() + facet_wrap(~platform, scales = 'free_x') +
+  scale_fill_ghibli_d("MarnieMedium1")+
+  theme(strip.background = element_blank(),panel.spacing = unit(1.7, "lines"))
+
+ggplotly(plotC)
+```
+
+
+## Conclusions
+ 
+Its evident that each streaming services differs, in content, quality, and quantity. 
+
+ - **Amazon Prime** has the most content, specifically for movies. It may not have the best movies and shows but it will has a lot to offer and a lot of old shows and movies.
+ - **Apple TV** has the least content with only 170 titles,but has variety when it comes to available genres. It has the newest content and on average has the highest overall ratings.
+ - **Disney+** while being a relatively small platform has some of the best movies to offer. It has a lot of variety for genres but its worth noting they primarily stream Disney related content.
+ - **HBO Max** is the best of both worlds. It has a good amount of content, with some of the best movies and shows available.
+ - **Netflix** is the second largest platform that we looked at. It has the most shows and some of the best shows on its platform.
+  
+All in all I personally feel that Netflix is the streaming platform for me. As much as I enjoy the movies offered by HBO, I love to binge watch shows while I go about my day. Hopefully there is enough here for someone else to decide what streaming service is right for them. There is defiantly more to explore here with ratings, age certifications and even production countries. It would be especially beneficial to be able to compare these platforms month by month. Streaming services tend to cycle through available content every month, and this can impact how the data fluctuates. It is defiantly something worth taking into consideration in the future.
+
